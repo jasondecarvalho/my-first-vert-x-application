@@ -1,6 +1,11 @@
 package io.vertx.blog.first;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -13,11 +18,21 @@ import org.junit.runner.RunWith;
 public class MyFirstVerticleTest {
 
 	private Vertx vertx;
+	private int port;
 
 	@Before
-	public void setUp(TestContext context) {
+	public void setUp(TestContext context) throws IOException {
 		vertx = Vertx.vertx();
-		vertx.deployVerticle(MyFirstVerticle.class.getName(), context.asyncAssertSuccess());
+		port = getAvailablePort();
+		DeploymentOptions deploymentOptions = new DeploymentOptions().setConfig(new JsonObject().put("http.port", port));
+		vertx.deployVerticle(MyFirstVerticle.class.getName(), deploymentOptions, context.asyncAssertSuccess());
+	}
+
+	private int getAvailablePort() throws IOException {
+		ServerSocket socket = new ServerSocket(0);
+		int port = socket.getLocalPort();
+		socket.close();
+		return port;
 	}
 
 	@After
@@ -29,7 +44,7 @@ public class MyFirstVerticleTest {
 	public void testMyApplication(TestContext context) {
 		final Async async = context.async();
 
-		vertx.createHttpClient().getNow(8080, "localhost", "/",
+		vertx.createHttpClient().getNow(port, "localhost", "/",
 				response ->
 						response.handler(body -> {
 							context.assertTrue(body.toString().contains("Hello"));
