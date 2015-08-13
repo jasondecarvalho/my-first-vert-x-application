@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -73,17 +74,37 @@ public class MyFirstVerticleTest {
 			context.assertEquals(response.statusCode(), 200);
 			context.assertEquals(response.headers().get("content-type"), "application/json");
 			response.bodyHandler(body -> {
-				context.assertTrue(body.toString().equals("[ {\n" +
-						"  \"id\" : 0,\n" +
+				System.out.println(body);
+				context.assertTrue(body.toString().contains("{\n" +
+						"  \"id\" : 7,\n" +
 						"  \"name\" : \"Bowmore 15 Years Laimrig\",\n" +
 						"  \"origin\" : \"Scotland, Islay\"\n" +
-						"}, {\n" +
-						"  \"id\" : 1,\n" +
-						"  \"name\" : \"Talisker 57° North\",\n" +
-						"  \"origin\" : \"Scotland, Island\"\n" +
-						"} ]"));
+						"}"));
 				async.complete();
 			});
 		});
+	}
+
+	@Test
+	public void checkThatWeCanAdd(TestContext context) {
+		Async async = context.async();
+		final String json = Json.encodePrettily(new Whisky("Jameson", "Ireland"));
+		final String length = Integer.toString(json.length());
+		vertx.createHttpClient().post(port, "localhost", "/api/whiskies")
+				.putHeader("content-type", "application/json")
+				.putHeader("content-length", length)
+				.handler(response -> {
+					context.assertEquals(response.statusCode(), 201);
+					context.assertTrue(response.headers().get("content-type").contains("application/json"));
+					response.bodyHandler(body -> {
+						final Whisky whisky = Json.decodeValue(body.toString(), Whisky.class);
+						context.assertEquals(whisky.getName(), "Jameson");
+						context.assertEquals(whisky.getOrigin(), "Ireland");
+						context.assertNotNull(whisky.getId());
+						async.complete();
+					});
+				})
+				.write(json)
+				.end();
 	}
 }

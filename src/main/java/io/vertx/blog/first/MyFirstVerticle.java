@@ -10,6 +10,7 @@ import io.vertx.core.json.Json;
 import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 public class MyFirstVerticle extends AbstractVerticle {
@@ -46,14 +47,25 @@ public class MyFirstVerticle extends AbstractVerticle {
 		return router.route("/assets/*").handler(StaticHandler.create("assets"));
 	}
 
-	private Route bindApiResources(Router router) {
-		return router.get("/api/whiskies").handler(this::getAll);
+	private void bindApiResources(Router router) {
+		router.get("/api/whiskies").handler(this::getAll);
+		router.route("/api/whiskies*").handler(BodyHandler.create());
+		router.post("/api/whiskies").handler(this::addOne);
 	}
 
 	private void getAll(RoutingContext routingContext) {
 		routingContext.response()
 				.putHeader("content-type", "application/json")
 				.end(Json.encodePrettily(products.values()));
+	}
+
+	private void addOne(RoutingContext routingContext) {
+		final Whisky whisky = Json.decodeValue(routingContext.getBodyAsString(), Whisky.class);
+		products.put(whisky.getId(), whisky);
+		routingContext.response()
+				.setStatusCode(201)
+				.putHeader("content-type", "application/json")
+				.end(Json.encodePrettily(whisky));
 	}
 
 	private void createServer(Future<Void> future, Router router) {
