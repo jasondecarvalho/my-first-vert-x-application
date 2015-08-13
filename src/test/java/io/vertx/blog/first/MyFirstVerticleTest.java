@@ -75,11 +75,10 @@ public class MyFirstVerticleTest {
 			context.assertEquals(response.headers().get("content-type"), "application/json");
 			response.bodyHandler(body -> {
 				System.out.println(body);
-				context.assertTrue(body.toString().contains("{\n" +
-						"  \"id\" : 7,\n" +
+				context.assertTrue(body.toString().contains(
 						"  \"name\" : \"Bowmore 15 Years Laimrig\",\n" +
-						"  \"origin\" : \"Scotland, Islay\"\n" +
-						"}"));
+								"  \"origin\" : \"Scotland, Islay\"\n"
+				));
 				async.complete();
 			});
 		});

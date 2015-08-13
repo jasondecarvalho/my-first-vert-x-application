@@ -7,6 +7,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -51,6 +52,9 @@ public class MyFirstVerticle extends AbstractVerticle {
 		router.get("/api/whiskies").handler(this::getAll);
 		router.route("/api/whiskies*").handler(BodyHandler.create());
 		router.post("/api/whiskies").handler(this::addOne);
+		router.get("/api/whiskies/:id").handler(this::getOne);
+		router.put("/api/whiskies/:id").handler(this::updateOne);
+		router.delete("/api/whiskies/:id").handler(this::deleteOne);
 	}
 
 	private void getAll(RoutingContext routingContext) {
@@ -66,6 +70,53 @@ public class MyFirstVerticle extends AbstractVerticle {
 				.setStatusCode(201)
 				.putHeader("content-type", "application/json")
 				.end(Json.encodePrettily(whisky));
+	}
+
+	private void getOne(RoutingContext routingContext) {
+		String id = routingContext.request().getParam("id");
+		if (id == null) {
+			routingContext.response().setStatusCode(400).end();
+		} else {
+			Integer idAsInteger = Integer.valueOf(id);
+			if (products.containsKey(idAsInteger)) {
+				routingContext.response()
+						.putHeader("content-type", "application/json")
+						.end(Json.encodePrettily(products.get(idAsInteger)));
+			} else {
+				routingContext.response().setStatusCode(404).end();
+			}
+		}
+	}
+
+	private void updateOne(RoutingContext routingContext) {
+		final String id = routingContext.request().getParam("id");
+		JsonObject json = routingContext.getBodyAsJson();
+		if (id == null || json == null) {
+			routingContext.response().setStatusCode(400).end();
+		} else {
+			final Integer idAsInteger = Integer.valueOf(id);
+			Whisky whisky = products.get(idAsInteger);
+			if (whisky == null) {
+				routingContext.response().setStatusCode(404).end();
+			} else {
+				whisky.setName(json.getString("name"));
+				whisky.setOrigin(json.getString("origin"));
+				routingContext.response()
+						.putHeader("content-type", "application/json; charset=utf-8")
+						.end(Json.encodePrettily(whisky));
+			}
+		}
+	}
+
+	private void deleteOne(RoutingContext routingContext) {
+		String id = routingContext.request().getParam("id");
+		if (id == null) {
+			routingContext.response().setStatusCode(400).end();
+		} else {
+			Integer idAsInteger = Integer.valueOf(id);
+			products.remove(idAsInteger);
+		}
+		routingContext.response().setStatusCode(204).end();
 	}
 
 	private void createServer(Future<Void> future, Router router) {
