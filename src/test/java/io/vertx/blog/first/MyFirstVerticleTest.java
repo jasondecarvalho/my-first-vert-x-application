@@ -52,4 +52,17 @@ public class MyFirstVerticleTest {
 						})
 		);
 	}
+
+	@Test
+	public void testStaticResourcesServed(TestContext testContext) {
+		final Async async = testContext.async();
+
+		vertx.createHttpClient().getNow(port, "localhost", "/assets/index.html",
+				response ->
+						response.handler(body -> {
+							testContext.assertTrue(body.toString().contains("html"));
+							async.complete();
+						})
+		);
+	}
 }
