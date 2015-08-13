@@ -54,15 +54,36 @@ public class MyFirstVerticleTest {
 	}
 
 	@Test
-	public void testStaticResourcesServed(TestContext testContext) {
-		final Async async = testContext.async();
+	public void checkThatTheIndexPageIsServed(TestContext context) {
+		Async async = context.async();
+		vertx.createHttpClient().getNow(port, "localhost", "/assets/index.html", response -> {
+			context.assertEquals(response.statusCode(), 200);
+			context.assertEquals(response.headers().get("content-type"), "text/html");
+			response.bodyHandler(body -> {
+				context.assertTrue(body.toString().contains("<title>My Whisky Collection</title>"));
+				async.complete();
+			});
+		});
+	}
 
-		vertx.createHttpClient().getNow(port, "localhost", "/assets/index.html",
-				response ->
-						response.handler(body -> {
-							testContext.assertTrue(body.toString().contains("html"));
-							async.complete();
-						})
-		);
+	@Test
+	public void testGetWhiskies(TestContext context) {
+		Async async = context.async();
+		vertx.createHttpClient().getNow(port, "localhost", "/api/whiskies", response -> {
+			context.assertEquals(response.statusCode(), 200);
+			context.assertEquals(response.headers().get("content-type"), "application/json");
+			response.bodyHandler(body -> {
+				context.assertTrue(body.toString().equals("[ {\n" +
+						"  \"id\" : 0,\n" +
+						"  \"name\" : \"Bowmore 15 Years Laimrig\",\n" +
+						"  \"origin\" : \"Scotland, Islay\"\n" +
+						"}, {\n" +
+						"  \"id\" : 1,\n" +
+						"  \"name\" : \"Talisker 57° North\",\n" +
+						"  \"origin\" : \"Scotland, Island\"\n" +
+						"} ]"));
+				async.complete();
+			});
+		});
 	}
 }
