@@ -23,29 +23,12 @@ public class RestIT {
 	}
 
 	@Test
-	public void checkThatWeCanRetrieveIndividualProduct() {
-		final int id = get("/api/whiskies").then()
-				.assertThat()
-				.statusCode(200)
-				.extract()
-				.jsonPath().getInt("find { it.name=='Bowmore 15 Years Laimrig' }.id");
-
-		get("/api/whiskies/" + id).then()
-				.assertThat()
-				.statusCode(200)
-				.body("name", equalTo("Bowmore 15 Years Laimrig"))
-				.body("origin", equalTo("Scotland, Islay"))
-				.body("id", equalTo(id));
-	}
-
-	@Test
-	public void checkWeCanAddAndDeleteAProduct() {
+	public void checkWeCanAddAndGetAndUpdateAndDeleteAProduct() {
 		Whisky whisky = given().body("{\"name\":\"Jameson\", \"origin\":\"Ireland\"}")
 				.request().post("/api/whiskies")
 				.thenReturn().as(Whisky.class);
 		assertThat(whisky.getName()).isEqualToIgnoringCase("Jameson");
 		assertThat(whisky.getOrigin()).isEqualToIgnoringCase("Ireland");
-		assertThat(whisky.getId()).isNotZero();
 
 		get("/api/whiskies/" + whisky.getId())
 				.then().assertThat()
@@ -54,12 +37,40 @@ public class RestIT {
 				.body("origin", equalTo("Ireland"))
 				.body("id", equalTo(whisky.getId()));
 
+		given().body("{\"name\":\"Teachers\", \"origin\":\"Scotland\"}")
+				.request().put("/api/whiskies/" + whisky.getId())
+				.then().assertThat()
+				.statusCode(200);
+
+		get("/api/whiskies/" + whisky.getId())
+				.then().assertThat()
+				.statusCode(200)
+				.body("name", equalTo("Teachers"))
+				.body("origin", equalTo("Scotland"))
+				.body("id", equalTo(whisky.getId()));
+
 		delete("/api/whiskies/" + whisky.getId())
 				.then().assertThat()
 				.statusCode(204);
 
 		get("/api/whiskies/" + whisky.getId()).then()
 				.assertThat()
+				.statusCode(404);
+	}
+
+	@Test
+	public void checkUpdateNullProductReturns400() {
+		given().body("{\"name\":\"Teachers\", \"origin\":\"Scotland\"}")
+				.request().put("/api/whiskies/")
+				.then().assertThat()
+				.statusCode(404);
+	}
+
+	@Test
+	public void checkUpdateUnknownProductReturns404() {
+		given().body("{\"name\":\"Teachers\", \"origin\":\"Scotland\"}")
+				.request().put("/api/whiskies/1")
+				.then().assertThat()
 				.statusCode(404);
 	}
 }

@@ -27,6 +27,7 @@ public class MyFirstVerticleTest {
 		port = getAvailablePort();
 		DeploymentOptions deploymentOptions = new DeploymentOptions().setConfig(new JsonObject().put("http.port", port));
 		vertx.deployVerticle(MyFirstVerticle.class.getName(), deploymentOptions, context.asyncAssertSuccess());
+
 	}
 
 	private int getAvailablePort() throws IOException {
@@ -68,28 +69,12 @@ public class MyFirstVerticleTest {
 	}
 
 	@Test
-	public void testGetWhiskies(TestContext context) {
-		Async async = context.async();
-		vertx.createHttpClient().getNow(port, "localhost", "/api/whiskies", response -> {
-			context.assertEquals(response.statusCode(), 200);
-			context.assertEquals(response.headers().get("content-type"), "application/json");
-			response.bodyHandler(body -> {
-				System.out.println(body);
-				context.assertTrue(body.toString().contains(
-						"  \"name\" : \"Bowmore 15 Years Laimrig\",\n" +
-								"  \"origin\" : \"Scotland, Islay\"\n"
-				));
-				async.complete();
-			});
-		});
-	}
-
-	@Test
 	public void checkThatWeCanAdd(TestContext context) {
 		Async async = context.async();
 		final String json = Json.encodePrettily(new Whisky("Jameson", "Ireland"));
 		final String length = Integer.toString(json.length());
-		vertx.createHttpClient().post(port, "localhost", "/api/whiskies")
+		vertx.createHttpClient()
+				.post(port, "localhost", "/api/whiskies")
 				.putHeader("content-type", "application/json")
 				.putHeader("content-length", length)
 				.handler(response -> {
@@ -100,7 +85,15 @@ public class MyFirstVerticleTest {
 						context.assertEquals(whisky.getName(), "Jameson");
 						context.assertEquals(whisky.getOrigin(), "Ireland");
 						context.assertNotNull(whisky.getId());
-						async.complete();
+						vertx.createHttpClient()
+								.delete(port, "localhost", "/api/whiskies/" + whisky.getId())
+								.handler((response2) -> {
+										context.assertEquals(response2.statusCode(), 204);
+										async.complete();
+								})
+								.setChunked(true)
+								.write(json)
+								.end();
 					});
 				})
 				.write(json)

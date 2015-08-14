@@ -9,18 +9,36 @@
 
 	<properties>
 		<project.reporting.outputEncoding>utf-8</project.reporting.outputEncoding>
+		<vertx.version>3.0.0</vertx.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>io.vertx</groupId>
 			<artifactId>vertx-core</artifactId>
-			<version>3.0.0</version>
+			<version>${vertx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.vertx</groupId>
 			<artifactId>vertx-web</artifactId>
-			<version>3.0.0</version>
+			<version>${vertx.version}</version>
+		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>io.vertx</groupId>-->
+			<!--<artifactId>vertx-mongo-embedded-db</artifactId>-->
+			<!--<version>${vertx.version}</version>-->
+		<!--</dependency>-->
+		<dependency>
+			<groupId>io.vertx</groupId>
+			<artifactId>vertx-mongo-client</artifactId>
+			<version>${vertx.version}</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.vertx</groupId>
+			<artifactId>vertx-rx-java</artifactId>
+			<version>${vertx.version}</version>
+			<scope>compile</scope>
 		</dependency>
 
 		<!-- Test -->
@@ -34,7 +52,7 @@
 		<dependency>
 			<groupId>io.vertx</groupId>
 			<artifactId>vertx-unit</artifactId>
-			<version>3.0.0</version>
+			<version>${vertx.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

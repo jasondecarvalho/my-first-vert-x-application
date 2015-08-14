@@ -1,26 +1,28 @@
 package io.vertx.blog.first;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.Route;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.rxjava.ext.mongo.MongoClient;
+import io.vertx.rxjava.ext.web.Route;
+import io.vertx.rxjava.ext.web.Router;
+import io.vertx.rxjava.ext.web.RoutingContext;
+import io.vertx.rxjava.ext.web.handler.BodyHandler;
+import io.vertx.rxjava.ext.web.handler.StaticHandler;
+import rx.Observable;
+import rx.functions.Action1;
 
 public class MyFirstVerticle extends AbstractVerticle {
 
-	private Map<Integer, Whisky> products = new LinkedHashMap<>();
+	public static final String WHISKIES_COLLECTION = "whiskies";
+	private MongoClient mongoClient;
 
 	@Override
-	public void start(Future<Void> future) {
-		createSomeData();
+	public void start(Future<Void> future) throws Exception {
+		mongoClient = MongoClient.createShared(vertx, config());
 		Router router = Router.router(vertx);
 		bindHelloMessage(router);
 		bindStaticResources(router);
@@ -28,20 +30,12 @@ public class MyFirstVerticle extends AbstractVerticle {
 		createServer(future, router);
 	}
 
-	private void createSomeData() {
-		Whisky bowmore = new Whisky("Bowmore 15 Years Laimrig", "Scotland, Islay");
-		products.put(bowmore.getId(), bowmore);
-		Whisky talisker = new Whisky("Talisker 57° North", "Scotland, Island");
-		products.put(talisker.getId(), talisker);
-	}
-
 	private void bindHelloMessage(Router router) {
-		router.route("/").handler(routingContext -> {
-			HttpServerResponse response = routingContext.response();
-			response
-					.putHeader("content-type", "text/html")
-					.end("<h1>Hello from my first Vert.x 3 application</h1>");
-		});
+		router.route("/").handler(routingContext ->
+						routingContext.response()
+								.putHeader("content-type", "text/html")
+								.end("<h1>Hello from my first Vert.x 3 application</h1>")
+		);
 	}
 
 	private Route bindStaticResources(Router router) {
@@ -58,18 +52,39 @@ public class MyFirstVerticle extends AbstractVerticle {
 	}
 
 	private void getAll(RoutingContext routingContext) {
-		routingContext.response()
-				.putHeader("content-type", "application/json")
-				.end(Json.encodePrettily(products.values()));
+		Observable<List<JsonObject>> getWhiskies = mongoClient.findObservable(WHISKIES_COLLECTION, new JsonObject());
+		getWhiskies.subscribe((whiskies) -> {
+			whiskies.forEach((whisky) -> {
+				unmarshallId(whisky);
+			});
+			routingContext.response()
+					.putHeader("content-type", "application/json")
+					.end(Json.encodePrettily(whiskies));
+		});
+	}
+
+	private void unmarshallId(JsonObject whisky) {
+		whisky.put("id", whisky.getValue("_id"));
+		whisky.remove("_id");
 	}
 
 	private void addOne(RoutingContext routingContext) {
 		final Whisky whisky = Json.decodeValue(routingContext.getBodyAsString(), Whisky.class);
-		products.put(whisky.getId(), whisky);
-		routingContext.response()
-				.setStatusCode(201)
-				.putHeader("content-type", "application/json")
-				.end(Json.encodePrettily(whisky));
+		Observable<String> updateObservable = mongoClient.saveObservable(WHISKIES_COLLECTION, whisky.asJsonObject());
+
+		updateObservable.subscribe(
+				(success) -> {
+					whisky.setId(success);
+					routingContext.response()
+							.setStatusCode(201)
+							.putHeader("content-type", "application/json")
+							.end(Json.encodePrettily(whisky));
+				},
+				handleThrowable(routingContext));
+	}
+
+	private JsonObject queryForId(String id) {
+		return new JsonObject().put("_id", id);
 	}
 
 	private void getOne(RoutingContext routingContext) {
@@ -77,14 +92,21 @@ public class MyFirstVerticle extends AbstractVerticle {
 		if (id == null) {
 			routingContext.response().setStatusCode(400).end();
 		} else {
-			Integer idAsInteger = Integer.valueOf(id);
-			if (products.containsKey(idAsInteger)) {
-				routingContext.response()
-						.putHeader("content-type", "application/json")
-						.end(Json.encodePrettily(products.get(idAsInteger)));
-			} else {
-				routingContext.response().setStatusCode(404).end();
-			}
+			Observable<JsonObject> findOne =
+					mongoClient.findOneObservable(WHISKIES_COLLECTION, queryForId(id), new JsonObject());
+
+			findOne.subscribe(
+					(whisky) -> {
+						if (whisky != null) {
+							unmarshallId(whisky);
+							routingContext.response()
+									.putHeader("content-type", "application/json")
+									.end(Json.encodePrettily(whisky));
+						} else {
+							routingContext.response().setStatusCode(404).end();
+						}
+					},
+					handleThrowable(routingContext));
 		}
 	}
 
@@ -94,18 +116,37 @@ public class MyFirstVerticle extends AbstractVerticle {
 		if (id == null || json == null) {
 			routingContext.response().setStatusCode(400).end();
 		} else {
-			final Integer idAsInteger = Integer.valueOf(id);
-			Whisky whisky = products.get(idAsInteger);
-			if (whisky == null) {
-				routingContext.response().setStatusCode(404).end();
-			} else {
-				whisky.setName(json.getString("name"));
-				whisky.setOrigin(json.getString("origin"));
-				routingContext.response()
-						.putHeader("content-type", "application/json; charset=utf-8")
-						.end(Json.encodePrettily(whisky));
-			}
+			Observable<JsonObject> find =
+					mongoClient.findOneObservable(WHISKIES_COLLECTION, queryForId(id), new JsonObject());
+
+			Observable<Void> replace = find.flatMap(
+					(whisky) -> {
+						if (whisky == null) {
+							routingContext.response().setStatusCode(404).end();
+							return Observable.empty();
+						} else {
+							return mongoClient.replaceObservable(WHISKIES_COLLECTION, queryForId(id), json);
+						}
+					}
+			).doOnError(handleThrowable(routingContext));
+
+			replace.subscribe(
+					(whisky) ->
+							routingContext.response()
+									.putHeader("content-type", "application/json")
+									.end(Json.encodePrettily(json)),
+					handleThrowable(routingContext)
+			);
 		}
+	}
+
+	private Action1<Throwable> handleThrowable(RoutingContext routingContext) {
+		return (throwable) -> {
+			throwable.printStackTrace();
+			routingContext.response()
+					.setStatusCode(500)
+					.end(throwable.toString());
+		};
 	}
 
 	private void deleteOne(RoutingContext routingContext) {
@@ -113,10 +154,9 @@ public class MyFirstVerticle extends AbstractVerticle {
 		if (id == null) {
 			routingContext.response().setStatusCode(400).end();
 		} else {
-			Integer idAsInteger = Integer.valueOf(id);
-			products.remove(idAsInteger);
+			mongoClient.remove(WHISKIES_COLLECTION, queryForId(id),
+					(v) -> routingContext.response().setStatusCode(204).end());
 		}
-		routingContext.response().setStatusCode(204).end();
 	}
 
 	private void createServer(Future<Void> future, Router router) {

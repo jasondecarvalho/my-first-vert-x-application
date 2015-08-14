@@ -1,25 +1,28 @@
 package io.vertx.blog.first;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import io.vertx.core.json.JsonObject;
 
 public class Whisky {
 
-	private static final AtomicInteger COUNTER = new AtomicInteger();
-
-	private final int id;
-
+	private String id;
 	private String name;
-
 	private String origin;
 
 	public Whisky(String name, String origin) {
-		this.id = COUNTER.getAndIncrement();
 		this.name = name;
 		this.origin = origin;
 	}
 
 	public Whisky() {
-		this.id = COUNTER.getAndIncrement();
+
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public String getId() {
+		return id;
 	}
 
 	public String getName() {
@@ -38,7 +41,7 @@ public class Whisky {
 		this.origin = origin;
 	}
 
-	public int getId() {
-		return id;
+	public JsonObject asJsonObject() {
+		return new JsonObject().put("name", name).put("origin", origin);
 	}
 }
