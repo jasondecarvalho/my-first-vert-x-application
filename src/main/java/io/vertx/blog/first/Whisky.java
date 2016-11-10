@@ -12,7 +12,7 @@ public class Whisky {
 		this.name = name;
 		this.origin = origin;
 	}
-
+ccddsfdsf
 	public Whisky() {
 
 	}
