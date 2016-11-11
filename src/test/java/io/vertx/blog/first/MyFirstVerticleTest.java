@@ -32,6 +32,7 @@ public class MyFirstVerticleTest {
 
 	private int getAvailablePort() throws IOException {
 		ServerSocket socket = new ServerSocket(0);
+		//
 		int port = socket.getLocalPort();
 		socket.close();
 		return port;
