@@ -14,7 +14,7 @@ public class Whisky {
 	}
 
 	public Whisky() {
-
+		//
 	}
 
 	public void setId(String id) {
